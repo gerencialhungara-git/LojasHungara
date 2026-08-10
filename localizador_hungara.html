@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hungara Lanches · A loja mais perto de você</title>
+<meta name="description" content="Encontre a unidade da Hungara Lanches mais próxima de você.">
+<meta name="theme-color" content="#DE2222">
+<!-- prévia ao compartilhar o link -->
+<meta property="og:title" content="Hungara Lanches · A loja mais perto de você">
+<meta property="og:description" content="Toque e descubra a unidade mais próxima.">
+<meta property="og:type" content="website">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+<!-- ==========================================================================
+     HUNGARA LANCHES · LOCALIZADOR DE LOJAS  (link da bio do Instagram)
+     Padrão da casa: DADO SEPARADO DA TELA (memória central §8).
+     Este arquivo é SÓ TELA. Os dados vêm de dados/hungara_lojas_publico.js,
+     gerado por gerar_base_publica.py (que remove faturamento, meta e ids).
+     ========================================================================== -->
+<style>
+  :root{
+    --vermelho:#DE2222; --vermelho-escuro:#A81616;
+    --creme:#FFF5E0; --tinta:#3B2B20;
+    --tinta-suave:#7a6555; --linha:#e8dcc4; --branco:#fff;
+    --raio:18px; --sombra:0 6px 20px rgba(59,43,32,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--creme); color:var(--tinta);
+    font-family:'Omnes','Segoe UI',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px 40px}
+
+  /* ---------- topo ---------- */
+  header{
+    background:var(--vermelho); color:#fff; text-align:center;
+    padding:22px 16px 26px; border-radius:0 0 26px 26px; box-shadow:var(--sombra);
+  }
+  /* logo horizontal oficial (letra creme) — some no vermelho do topo de propósito */
+  header img{width:min(86%,330px);height:auto;display:block;margin:2px auto 12px}
+  header h1{font-size:1.32rem;margin:0;font-weight:700;letter-spacing:.2px}
+  header p{margin:6px 0 0;font-size:.92rem;opacity:.92}
+
+  /* ---------- botões ---------- */
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;border:0;border-radius:999px;padding:16px 18px;
+    font:inherit;font-size:1.04rem;font-weight:700;cursor:pointer;
+    text-decoration:none;transition:transform .08s ease, filter .15s ease;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn-primario{background:var(--vermelho);color:#fff;box-shadow:0 6px 16px rgba(222,34,34,.30)}
+  .btn-primario:hover{filter:brightness(1.06)}
+  .btn-secundario{background:var(--branco);color:var(--tinta);border:2px solid var(--linha)}
+  .btn-mapa{background:var(--tinta);color:#fff;padding:14px}
+  .btn:disabled{opacity:.55;cursor:progress}
+
+  /* ---------- busca ---------- */
+  .busca{margin-top:18px}
+  .ou{display:flex;align-items:center;gap:10px;color:var(--tinta-suave);font-size:.84rem;margin:14px 0}
+  .ou::before,.ou::after{content:"";flex:1;height:1px;background:var(--linha)}
+  .campo{display:flex;gap:8px}
+  .campo input{
+    flex:1;min-width:0;border:2px solid var(--linha);background:var(--branco);
+    border-radius:999px;padding:14px 18px;font:inherit;font-size:1rem;color:var(--tinta);
+  }
+  .campo input:focus{outline:none;border-color:var(--vermelho)}
+  .campo button{
+    border:0;background:var(--tinta);color:#fff;border-radius:999px;
+    padding:0 20px;font:inherit;font-weight:700;cursor:pointer;
+  }
+
+  /* ---------- avisos ---------- */
+  .aviso{
+    margin-top:14px;padding:12px 14px;border-radius:14px;font-size:.9rem;
+    background:#fff3cd;border:1px solid #f0dca0;color:#6b5312;
+  }
+  .aviso.erro{background:#fdecea;border-color:#f5c2bd;color:#8a1c12}
+  .escondido{display:none !important}
+
+  /* ---------- resultado ---------- */
+  .rotulo{
+    font-size:.78rem;letter-spacing:.10em;text-transform:uppercase;
+    color:var(--tinta-suave);font-weight:700;margin:26px 0 10px;
+  }
+  .destaque{
+    background:var(--branco);border-radius:var(--raio);box-shadow:var(--sombra);
+    overflow:hidden;border:2px solid var(--vermelho);
+  }
+  .destaque .topo{padding:18px 18px 14px}
+  .destaque h2{margin:0;font-size:1.42rem;line-height:1.2}
+  .linha-info{display:flex;align-items:center;gap:6px;color:var(--tinta-suave);font-size:.95rem;margin-top:6px}
+  .selo{
+    display:inline-block;background:var(--creme);border:1px solid var(--linha);
+    color:var(--tinta);border-radius:999px;padding:3px 11px;font-size:.78rem;font-weight:700;margin-top:10px;
+  }
+  .selo.parceiro{background:#e8f0fb;border-color:#c3d8f2;color:#1c4f92}
+  .distancia{
+    display:inline-flex;align-items:baseline;gap:5px;
+    background:var(--vermelho);color:#fff;border-radius:999px;
+    padding:5px 13px;font-weight:700;font-size:1rem;margin-top:10px;
+  }
+  .distancia small{font-size:.75rem;font-weight:600;opacity:.9}
+  #mapa{height:190px;width:100%;background:#e9e3d5}
+  .destaque .acoes{display:flex;flex-direction:column;gap:9px;padding:14px}
+
+  /* ---------- lista ---------- */
+  .item{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--branco);border:1px solid var(--linha);border-radius:14px;
+    padding:12px 14px;margin-bottom:9px;text-decoration:none;color:inherit;
+  }
+  .item:active{background:#fffaf0}
+  .item .nome{font-weight:700;font-size:1.02rem}
+  .item .sub{color:var(--tinta-suave);font-size:.87rem}
+  .item .km{margin-left:auto;text-align:right;color:var(--vermelho);font-weight:700;white-space:nowrap}
+  .item .km small{display:block;color:var(--tinta-suave);font-weight:600;font-size:.72rem}
+  .ponto-azul{width:9px;height:9px;border-radius:50%;background:#1c4f92;flex:none}
+  .ponto-vermelho{width:9px;height:9px;border-radius:50%;background:var(--vermelho);flex:none}
+
+  /* ---------- filtro ---------- */
+  .chips{display:flex;gap:8px;margin:18px 0 4px}
+  .chip{
+    flex:1;border:2px solid var(--linha);background:var(--branco);color:var(--tinta-suave);
+    border-radius:999px;padding:10px 8px;font:inherit;font-size:.9rem;font-weight:700;cursor:pointer;
+  }
+  .chip[aria-pressed="true"]{background:var(--tinta);border-color:var(--tinta);color:#fff}
+
+  footer{text-align:center;color:var(--tinta-suave);font-size:.78rem;margin-top:30px;line-height:1.6}
+  footer a{color:var(--tinta-suave)}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="logoTopo" alt="Hungara Lanches">
+  <h1>A loja mais perto de você</h1>
+  <p>Toque no botão e a gente acha a unidade mais próxima</p>
+</header>
+
+<main class="wrap">
+
+  <section class="busca">
+    <button id="btnGps" class="btn btn-primario">📍 Usar minha localização</button>
+    <div class="ou">ou</div>
+    <form class="campo" id="formBusca" autocomplete="off">
+      <input id="txtBusca" type="search" inputmode="search"
+             placeholder="CEP, bairro ou cidade" aria-label="CEP, bairro ou cidade">
+      <button type="submit">Buscar</button>
+    </form>
+    <div id="aviso" class="aviso escondido" role="status"></div>
+  </section>
+
+  <section id="secResultado" class="escondido">
+    <div class="rotulo" id="rotuloDestaque">Mais perto de você</div>
+    <article class="destaque">
+      <div class="topo">
+        <h2 id="nomeLoja">—</h2>
+        <div class="linha-info" id="endLoja"></div>
+        <div><span class="selo" id="tipoLoja"></span></div>
+        <div><span class="distancia" id="distLoja"></span></div>
+      </div>
+      <div id="mapa"></div>
+      <div class="acoes">
+        <a id="btnRota" class="btn btn-primario" href="#" target="_blank" rel="noopener">🧭 Como chegar</a>
+        <a id="btnZap" class="btn btn-mapa escondido" href="#" target="_blank" rel="noopener">💬 Falar no WhatsApp</a>
+      </div>
+    </article>
+  </section>
+
+  <section id="secLista">
+    <div class="chips" id="chips">
+      <button class="chip" id="chipLojas"     aria-pressed="true">Lojas Hungara</button>
+      <button class="chip" id="chipParceiros" aria-pressed="false">Mercados parceiros</button>
+    </div>
+    <div class="rotulo" id="rotuloLista">Todas as unidades</div>
+    <div id="lista"></div>
+  </section>
+
+  <footer>
+    <div>Hungara Lanches · <span id="rev"></span></div>
+    <div id="creditoMapa"></div>
+  </footer>
+</main>
+
+<script src="dados/hungara_marca.js"></script>
+<script src="dados/hungara_logo_topo.js"></script>
+<script src="dados/hungara_lojas_publico.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* ======================================================================
+     CONFIGURAÇÃO
+     ---------------------------------------------------------------------
+     CHAVE_GOOGLE: opcional. Vazia = a busca por CEP/bairro usa ViaCEP +
+     Nominatim (OpenStreetMap), que são gratuitos e não pedem cadastro.
+     Se um dia quiser precisão de endereço completo, coloque a chave aqui
+     (guia: Projetos/Geomarket/Guia_Chave_Google_Hungara.md).
+     ⚠️ Chave em página pública TEM que ser restrita por domínio (HTTP referrer).
+     ====================================================================== */
+  var CHAVE_GOOGLE = "";
+  var QUANTAS_NA_LISTA = 6;          // quantas unidades mostrar abaixo da destacada
+  var BASE = window.HUNGARA_LOJAS || {unidades:[]};
+
+  var el = function(id){ return document.getElementById(id); };
+  var minhaPos = null;               // {lat, lon} de quem está olhando
+  var mapa = null, marcador = null, marcadorEu = null;
+  var filtro = "loja";               // "loja" | "parceiro"
+
+  /* ---------------------------------------------------------------- util */
+
+  // Haversine: distância em linha reta, em km. (Não é distância de rua —
+  // por isso o texto na tela diz "em linha reta".)
+  function distanciaKm(aLat, aLon, bLat, bLon){
+    var R = 6371, g = Math.PI/180;
+    var dLat = (bLat-aLat)*g, dLon = (bLon-aLon)*g;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(aLat*g)*Math.cos(bLat*g)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function formataDist(km){
+    if (km == null) return "";
+    if (km < 1) return Math.round(km*1000) + " m";
+    return (km < 10 ? km.toFixed(1) : Math.round(km)) + " km";
+  }
+
+  function avisar(texto, erro){
+    var a = el("aviso");
+    a.textContent = texto;
+    a.className = "aviso" + (erro ? " erro" : "");
+    a.classList.toggle("escondido", !texto);
+  }
+
+  function semAcento(s){
+    return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+
+  /* ------------------------------------------------------------ ordenar */
+
+  function unidades(){
+    return BASE.unidades.filter(function(u){ return u.cat === filtro; });
+  }
+
+  function ordenadas(){
+    var lista = unidades().slice();
+    if (minhaPos){
+      lista.forEach(function(u){ u._km = distanciaKm(minhaPos.lat, minhaPos.lon, u.lat, u.lon); });
+      lista.sort(function(a,b){ return a._km - b._km; });
+    } else {
+      lista.forEach(function(u){ u._km = null; });
+      lista.sort(function(a,b){
+        return (a.cidade+a.nome).localeCompare(b.cidade+b.nome, "pt-BR");
+      });
+    }
+    return lista;
+  }
+
+  /* -------------------------------------------------------------- rotas */
+
+  function linkRota(u){
+    var destino = u.lat + "," + u.lon;
+    var url = "https://www.google.com/maps/dir/?api=1&destination=" + destino;
+    if (minhaPos) url += "&origin=" + minhaPos.lat + "," + minhaPos.lon;
+    return url;
+  }
+
+  /* -------------------------------------------------------------- mapa  */
+
+  function desenharMapa(u){
+    if (typeof L === "undefined") {           // Leaflet não carregou (sem internet no CDN)
+      el("mapa").style.display = "none";
+      return;
+    }
+    el("mapa").style.display = "";
+    if (!mapa){
+      mapa = L.map("mapa", {zoomControl:false, attributionControl:false, scrollWheelZoom:false});
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19}).addTo(mapa);
+      el("creditoMapa").innerHTML = 'Mapa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+    }
+    // Loja = pin da marca · mercado parceiro = azul (convenção do mapa, raiz §6)
+    var icone = null;
+    if (u.cat === "parceiro"){
+      icone = L.divIcon({
+        className:"", iconSize:[22,22], iconAnchor:[11,11],
+        html:'<div style="width:22px;height:22px;border-radius:50%;background:#1c4f92;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>'
+      });
+    } else if (window.HUNGARA_MARCA && window.HUNGARA_MARCA.pin){
+      icone = L.icon({iconUrl:window.HUNGARA_MARCA.pin, iconSize:[38,44], iconAnchor:[19,44]});
+    }
+
+    if (marcador) mapa.removeLayer(marcador);
+    marcador = L.marker([u.lat,u.lon], icone ? {icon:icone} : {}).addTo(mapa);
+
+    if (marcadorEu){ mapa.removeLayer(marcadorEu); marcadorEu = null; }
+    if (minhaPos){
+      marcadorEu = L.circleMarker([minhaPos.lat, minhaPos.lon], {
+        radius:8, color:"#fff", weight:3, fillColor:"#1c4f92", fillOpacity:1
+      }).addTo(mapa);
+      mapa.fitBounds(L.latLngBounds([[u.lat,u.lon],[minhaPos.lat,minhaPos.lon]]), {padding:[38,38], maxZoom:15});
+    } else {
+      mapa.setView([u.lat,u.lon], 15);
+    }
+    setTimeout(function(){ mapa.invalidateSize(); }, 120);
+  }
+
+  /* ------------------------------------------------------------ desenhar */
+
+  function pintar(){
+    var lista = ordenadas();
+    var temPos = !!minhaPos;
+
+    // ---- card de destaque (só faz sentido quando sabemos onde a pessoa está)
+    el("secResultado").classList.toggle("escondido", !temPos || !lista.length);
+    if (temPos && lista.length){
+      var u = lista[0];
+      el("nomeLoja").textContent = (u.cat === "loja" ? "Hungara " : "") + u.nome;
+      el("endLoja").textContent  = "📍 " + u.bairro + " · " + u.cidade;
+      el("tipoLoja").textContent = u.tipo;
+      el("tipoLoja").className   = "selo" + (u.cat === "parceiro" ? " parceiro" : "");
+      el("distLoja").innerHTML   = formataDist(u._km) + " <small>em linha reta</small>";
+      el("btnRota").href         = linkRota(u);
+      var zap = el("btnZap");
+      if (u.whats){ zap.href = "https://wa.me/" + u.whats; zap.classList.remove("escondido"); }
+      else { zap.classList.add("escondido"); }
+      el("rotuloDestaque").textContent = (filtro === "loja")
+        ? "Loja mais perto de você" : "Mercado parceiro mais perto de você";
+      desenharMapa(u);
+    }
+
+    // ---- lista
+    el("rotuloLista").textContent = temPos
+      ? (filtro === "loja" ? "Outras lojas perto" : "Outros mercados perto")
+      : (filtro === "loja" ? "Todas as lojas" : "Todos os mercados parceiros");
+
+    var alvo = el("lista");
+    alvo.innerHTML = "";
+    lista.slice(temPos ? 1 : 0, temPos ? QUANTAS_NA_LISTA+1 : lista.length).forEach(function(u){
+      var a = document.createElement("a");
+      a.className = "item";
+      a.href = linkRota(u);
+      a.target = "_blank"; a.rel = "noopener";
+      a.innerHTML =
+        '<span class="' + (u.cat==="parceiro" ? "ponto-azul" : "ponto-vermelho") + '"></span>' +
+        '<span><span class="nome">' + u.nome + '</span><br>' +
+        '<span class="sub">' + u.bairro + " · " + u.cidade + '</span></span>' +
+        (u._km != null ? '<span class="km">' + formataDist(u._km) + '<small>como chegar</small></span>'
+                       : '<span class="km">›</span>');
+      alvo.appendChild(a);
+    });
+
+    if (temPos && lista.length > QUANTAS_NA_LISTA+1){
+      var b = document.createElement("button");
+      b.className = "btn btn-secundario";
+      b.textContent = "Ver todas as " + lista.length + " unidades";
+      b.onclick = function(){ QUANTAS_NA_LISTA = 999; pintar(); };
+      alvo.appendChild(b);
+    }
+  }
+
+  /* ------------------------------------------------------------- ações */
+
+  function usarPosicao(lat, lon, mensagem){
+    minhaPos = {lat:lat, lon:lon};
+    avisar(mensagem || "", false);
+    pintar();
+    el("secResultado").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  el("btnGps").addEventListener("click", function(){
+    var botao = this;
+    if (!navigator.geolocation){
+      avisar("Seu navegador não sabe informar a localização. Digite o CEP ou o bairro logo abaixo.", true);
+      return;
+    }
+    botao.disabled = true; botao.textContent = "Procurando você...";
+    navigator.geolocation.getCurrentPosition(
+      function(p){
+        botao.disabled = false; botao.textContent = "📍 Atualizar minha localização";
+        usarPosicao(p.coords.latitude, p.coords.longitude);
+      },
+      function(){
+        botao.disabled = false; botao.textContent = "📍 Usar minha localização";
+        avisar("Não consegui pegar sua localização (a permissão pode estar bloqueada). Digite seu CEP ou bairro abaixo.", true);
+      },
+      {enableHighAccuracy:true, timeout:10000, maximumAge:60000}
+    );
+  });
+
+  // Busca por texto: 1) tenta casar com o nome/bairro das unidades (instantâneo,
+  // sem internet nenhuma);  2) se for CEP, usa ViaCEP;  3) senão, Nominatim.
+  el("formBusca").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var texto = el("txtBusca").value.trim();
+    if (!texto) return;
+    avisar("Procurando...", false);
+
+    var cep = texto.replace(/\D/g,"");
+    if (cep.length === 8){ buscarCep(cep); return; }
+
+    var chave = semAcento(texto);
+    // Ranking: bairro/nome exato ganha de "contém". Sem isso, procurar "Tijuca"
+    // acharia primeiro a loja do bairro "Barra da Tijuca".
+    var achou = unidades().map(function(u){
+      var nome = semAcento(u.nome), bairro = semAcento(u.bairro), cidade = semAcento(u.cidade);
+      var nota = 0;
+      if (bairro === chave || nome === chave) nota = 100;
+      else if (cidade === chave) nota = 80;
+      else if (bairro.indexOf(chave) === 0 || nome.indexOf(chave) === 0) nota = 60;
+      else if ((u.busca||"").indexOf(chave) >= 0) nota = 30;
+      return {u:u, nota:nota};
+    }).filter(function(x){ return x.nota > 0; })
+      .sort(function(a,b){ return b.nota - a.nota; });
+
+    if (achou.length){
+      var alvo = achou[0].u;
+      if (achou[0].nota === 80){          // casou com a CIDADE: parte do meio da cidade
+        var naCidade = unidades().filter(function(u){ return semAcento(u.cidade) === chave; });
+        var lat = naCidade.reduce(function(s,u){ return s+u.lat; },0)/naCidade.length;
+        var lon = naCidade.reduce(function(s,u){ return s+u.lon; },0)/naCidade.length;
+        usarPosicao(lat, lon, "Mostrando a partir do centro de " + alvo.cidade + ". Para acertar melhor, digite o bairro ou o CEP.");
+        return;
+      }
+      usarPosicao(alvo.lat, alvo.lon,
+        "Mostrando a partir de " + alvo.bairro + " · " + alvo.cidade + ".");
+      return;
+    }
+    geocodificar(texto + ", RJ, Brasil");
+  });
+
+  function buscarCep(cep){
+    fetch("https://viacep.com.br/ws/" + cep + "/json/")
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.erro) throw new Error("cep");
+        geocodificar([d.logradouro, d.bairro, d.localidade, d.uf, "Brasil"]
+                     .filter(Boolean).join(", "));
+      })
+      .catch(function(){ avisar("CEP não encontrado. Tente o bairro ou a cidade.", true); });
+  }
+
+  function geocodificar(consulta){
+    var url = CHAVE_GOOGLE
+      ? "https://maps.googleapis.com/maps/api/geocode/json?address=" + encodeURIComponent(consulta) + "&key=" + CHAVE_GOOGLE
+      : "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(consulta);
+
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var lat, lon;
+        if (CHAVE_GOOGLE){
+          if (!d.results || !d.results.length) throw new Error("vazio");
+          lat = d.results[0].geometry.location.lat; lon = d.results[0].geometry.location.lng;
+        } else {
+          if (!d.length) throw new Error("vazio");
+          lat = parseFloat(d[0].lat); lon = parseFloat(d[0].lon);
+        }
+        usarPosicao(lat, lon, "Mostrando a partir de: " + consulta.replace(", Brasil",""));
+      })
+      .catch(function(){
+        avisar("Não achei esse endereço. Tente só o bairro ou a cidade — ou use o botão de localização.", true);
+      });
+  }
+
+  el("chipLojas").addEventListener("click", function(){ trocarFiltro("loja"); });
+  el("chipParceiros").addEventListener("click", function(){ trocarFiltro("parceiro"); });
+
+  function trocarFiltro(novo){
+    filtro = novo;
+    el("chipLojas").setAttribute("aria-pressed", novo === "loja");
+    el("chipParceiros").setAttribute("aria-pressed", novo === "parceiro");
+    pintar();
+  }
+
+  /* --------------------------------------------------------------- boot */
+
+  // Logo horizontal oficial no topo. Se o arquivo não carregar, o hungara_marca.js
+  // já deixou o logo antigo no lugar — a página nunca fica sem marca.
+  // (sem data-marca no <img>: o hungara_marca.js sobrescreveria o src no DOMContentLoaded)
+  el("logoTopo").src = window.HUNGARA_LOGO_TOPO ||
+                       (window.HUNGARA_MARCA ? window.HUNGARA_MARCA.logo : "");
+
+  el("rev").textContent = BASE.unidades.length + " unidades · base " + (BASE.rev || "?");
+  pintar();
+
+  // Se a pessoa já autorizou a localização antes neste navegador, entra pronto.
+  if (navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:"geolocation"}).then(function(p){
+      if (p.state === "granted") el("btnGps").click();
+    }).catch(function(){});
+  }
+
+  window.HUNGARA_LOCALIZADOR = {          // gancho para teste automatizado
+    simular: function(lat, lon){ usarPosicao(lat, lon); return document.getElementById("nomeLoja").textContent; },
+    distanciaKm: distanciaKm
+  };
+})();
+</script>
+</body>
+</html>
